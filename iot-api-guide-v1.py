@@ -1,9 +1,10 @@
 import streamlit as st
-import requests
 import pandas as pd
 import plotly.express as px
 import time
 from datetime import datetime
+import requests
+from io import StringIO
 
 # Streamlit app configuration
 st.set_page_config(page_title="IoT API Guide", page_icon="🌐", layout="wide")
@@ -11,37 +12,61 @@ st.set_page_config(page_title="IoT API Guide", page_icon="🌐", layout="wide")
 # Title and description
 st.title("IoT API Guide: Simulate IoT Device Interaction")
 st.markdown("""
-This app demonstrates how to interact with an IoT API to:
-- Fetch sensor data (e.g., temperature, humidity).
-- Send control commands (e.g., turn a device on/off).
+This app demonstrates how to interact with IoT data to:
+- Fetch sensor data (e.g., temperature, humidity) from a GitHub-hosted CSV file.
+- Send control commands (mocked for now).
 - Visualize real-time data.
 
-**Note**: This uses a mock API for demonstration. Replace with a real IoT API for production.
+**Note**: Currently uses `sensor_data.csv` from GitHub to avoid API issues. Replace with a real IoT API for production.
 """)
 
-# Mock API endpoints (replace with real IoT API endpoints)
-MOCK_SENSOR_API = "https://api.mocki.co/2/123456/sensors"  # Simulated sensor data
+# GitHub raw URL for sensor_data.csv
+SENSOR_DATA_URL = "https://raw.githubusercontent.com/BurstSoftware/iot-api-guide-v1/main/sensor_data.csv"
+
+# Mock control API endpoint (kept as placeholder)
 MOCK_CONTROL_API = "https://api.mocki.co/2/123456/control"  # Simulated control endpoint
 
-# Function to fetch sensor data from IoT API
-@st.cache_data(ttl=60)  # Cache data for 60 seconds
-def fetch_sensor_data():
+# Function to fetch and load sensor data from GitHub CSV
+@st.cache_data(ttl=60)  # Cache CSV loading for 60 seconds
+def load_sensor_data():
     try:
-        response = requests.get(MOCK_SENSOR_API, timeout=5)
+        response = requests.get(SENSOR_DATA_URL, timeout=5)
         response.raise_for_status()  # Raise error for bad status
-        data = response.json()
-        return data.get("sensors", {})
+        # Parse CSV content from response text
+        csv_content = StringIO(response.text)
+        df = pd.read_csv(csv_content)
+        return df
     except requests.RequestException as e:
-        st.error(f"Error fetching sensor data: {e}")
-        return {"temperature": 0, "humidity": 0}
+        st.error(f"Error fetching sensor data from GitHub: {e}")
+        return pd.DataFrame(columns=["timestamp", "temperature", "humidity"])
+    except pd.errors.ParserError:
+        st.error("Invalid CSV format in sensor_data.csv")
+        return pd.DataFrame(columns=["timestamp", "temperature", "humidity"])
 
-# Function to send control command to IoT device
+# Simulate fetching sensor data by cycling through CSV rows
+def fetch_sensor_data():
+    df = load_sensor_data()
+    if df.empty:
+        return {"temperature": 0, "humidity": 0}
+    
+    # Use session state to track current row index
+    if "csv_row_index" not in st.session_state:
+        st.session_state["csv_row_index"] = 0
+    
+    # Get current row
+    row = df.iloc[st.session_state["csv_row_index"] % len(df)]  # Cycle through rows
+    st.session_state["csv_row_index"] += 1
+    
+    return {
+        "temperature": row["temperature"],
+        "humidity": row["humidity"]
+    }
+
+# Function to send control command (mocked for now)
 def send_control_command(device_id, state):
     try:
-        payload = {"device_id": device_id, "state": state}
-        response = requests.post(MOCK_CONTROL_API, json=payload, timeout=5)
-        response.raise_for_status()
-        return response.json().get("message", "Command sent successfully!")
+        # Placeholder: Mock response to avoid API errors
+        return f"Mock: Command {state} sent to {device_id}"
     except requests.RequestException as e:
         st.error(f"Error sending command: {e}")
         return "Failed to send command."
@@ -79,13 +104,13 @@ with col1:
     # Simulate real-time data updates
     st.subheader("Monitoring...")
     while True:
-        # Fetch sensor data
+        # Fetch sensor data from GitHub CSV
         sensor_data = fetch_sensor_data()
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
         # Update session state with new data
         st.session_state["sensor_history"].append({
-            "timestamp": timestamp,  # Fixed: Corrected key order
+            "timestamp": timestamp,
             "temperature": sensor_data.get("temperature", 0),
             "humidity": sensor_data.get("humidity", 0)
         })
@@ -118,7 +143,7 @@ with col1:
 st.markdown("""
 ---
 **How to Extend**:
-1. Replace mock APIs with real IoT platform APIs (e.g., AWS IoT, Tuya, Blynk).
+1. Replace GitHub CSV with real IoT platform APIs (e.g., AWS IoT, Tuya, Blynk).
 2. Add authentication headers (e.g., Bearer {api_key}).
 3. Implement error handling for production use.
 4. Add more control options (e.g., sliders for brightness, color pickers).
@@ -127,5 +152,5 @@ st.markdown("""
 **Resources**:
 - [AWS IoT API Docs](https://docs.aws.amazon.com/iot/)
 - [Streamlit Docs](https://docs.streamlit.io/)
-- [Mock API Service](https://mocki.io/)
+- [GitHub Raw Files](https://docs.github.com/en/repositories/working-with-files/using-files)
 """)
