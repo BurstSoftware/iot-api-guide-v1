@@ -17,14 +17,11 @@ This app demonstrates how to interact with IoT data to:
 - Send control commands (mocked for now).
 - Visualize real-time data.
 
-**Note**: Currently uses `sensor_data.csv` from GitHub to avoid API issues. Replace with a real IoT API for production.
+**Note**: Uses `sensor_data.csv` from GitHub to avoid API issues. Replace with a real IoT API for production.
 """)
 
 # GitHub raw URL for sensor_data.csv
 SENSOR_DATA_URL = "https://raw.githubusercontent.com/BurstSoftware/iot-api-guide-v1/main/sensor_data.csv"
-
-# Mock control API endpoint (kept as placeholder)
-MOCK_CONTROL_API = "https://api.mocki.co/2/123456/control"  # Simulated control endpoint
 
 # Function to fetch and load sensor data from GitHub CSV
 @st.cache_data(ttl=60)  # Cache CSV loading for 60 seconds
@@ -35,9 +32,12 @@ def load_sensor_data():
         # Parse CSV content from response text
         csv_content = StringIO(response.text)
         df = pd.read_csv(csv_content)
+        # Validate required columns
+        if not all(col in df.columns for col in ["timestamp", "temperature", "humidity"]):
+            raise ValueError("CSV missing required columns: timestamp, temperature, humidity")
         return df
-    except requests.RequestException as e:
-        st.error(f"Error fetching sensor data from GitHub: {e}")
+    except (requests.RequestException, ValueError) as e:
+        st.error(f"Error fetching or parsing sensor data from GitHub: {e}")
         return pd.DataFrame(columns=["timestamp", "temperature", "humidity"])
     except pd.errors.ParserError:
         st.error("Invalid CSV format in sensor_data.csv")
@@ -62,14 +62,9 @@ def fetch_sensor_data():
         "humidity": row["humidity"]
     }
 
-# Function to send control command (mocked for now)
+# Function to send control command (fully mocked)
 def send_control_command(device_id, state):
-    try:
-        # Placeholder: Mock response to avoid API errors
-        return f"Mock: Command {state} sent to {device_id}"
-    except requests.RequestException as e:
-        st.error(f"Error sending command: {e}")
-        return "Failed to send command."
+    return f"Mock: Command {state} sent to {device_id}"
 
 # Sidebar for configuration
 st.sidebar.header("IoT Device Configuration")
@@ -131,8 +126,8 @@ with col1:
         # Plot data using Plotly
         if not df.empty:
             fig = px.line(df, x="timestamp", y=["temperature", "humidity"], 
-                         title="Sensor Data Over Time",
-                         labels={"value": "Measurement", "variable": "Sensor Type"})
+                          title="Sensor Data Over Time",
+                          labels={"value": "Measurement", "variable": "Sensor Type"})
             fig.update_layout(showlegend=True)
             chart_placeholder.plotly_chart(fig, use_container_width=True)
         
@@ -144,9 +139,9 @@ st.markdown("""
 ---
 **How to Extend**:
 1. Replace GitHub CSV with real IoT platform APIs (e.g., AWS IoT, Tuya, Blynk).
-2. Add authentication headers (e.g., Bearer {api_key}).
-3. Implement error handling for production use.
-4. Add more control options (e.g., sliders for brightness, color pickers).
+2. Add authentication headers for APIs (e.g., Bearer {api_key}).
+3. Implement robust error handling for production.
+4. Add more control options (e.g., sliders for brightness).
 5. Deploy on Streamlit Cloud for remote access.
 
 **Resources**:
