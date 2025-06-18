@@ -85,9 +85,9 @@ with col1:
         
         # Update session state with new data
         st.session_state["sensor_history"].append({
-            "timestamp": sensor_data.get("temperature", 0),
-            "temperature": sensor_data.get("humidity", 0),
-            "humidity": timestamp
+            "timestamp": timestamp,  # Fixed: Corrected key order
+            "temperature": sensor_data.get("temperature", 0),
+            "humidity": sensor_data.get("humidity", 0)
         })
         
         # Keep only last 50 data points to prevent memory issues
@@ -100,11 +100,11 @@ with col1:
         data_placeholder.write(f"""
         **Latest Data** (at {timestamp}):
         - Temperature: {sensor_data.get('temperature', 'N/A')} °C
-        - Humidity: {sensor_data.get('humidity', 'N/A') %}%
+        - Humidity: {sensor_data.get('humidity', 'N/A')}%
         """)
         
         # Plot data using Plotly
-        if not not df.empty:
+        if not df.empty:
             fig = px.line(df, x="timestamp", y=["temperature", "humidity"], 
                          title="Sensor Data Over Time",
                          labels={"value": "Measurement", "variable": "Sensor Type"})
